@@ -1,0 +1,11 @@
+<!doctype html><html><head><meta charset="utf-8"><title>ВТОРХОД / Design atlas</title><style>@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap');body{margin:0;background:#e4e5e9;display:grid;grid-template-columns:repeat(2,max-content);gap:80px}iframe{display:block;border:0}section{margin:0}h2{font:16px monospace;margin:0;padding:20px;color:#103dff}.dropcap:first-letter{float:left;font-size:57px;line-height:.9;margin:8px 8px 0 0}</style></head><body><script type="module">
+const q=new URLSearchParams(location.search),width=q.get('size')==='mobile'?390:1440;
+document.body.style.width=(width*2+80)+'px';
+const routes=['home','process','login','register','account','application','chat'];
+function copyStyles(from,to){if(from.nodeType!==1)return;const s=from.ownerDocument.defaultView.getComputedStyle(from);to.setAttribute('style',Array.from(s).map(k=>k+':'+s.getPropertyValue(k)).join(';'));for(let i=0;i<from.children.length;i++)copyStyles(from.children[i],to.children[i]);}
+const jobs=[];
+for(const route of routes)for(const theme of ['light','dark']){const section=document.createElement('section'),h=document.createElement('h2'),f=document.createElement('iframe');h.textContent=route+' / '+width+' / '+theme;f.title=route;f.width=width;f.height=900;f.src='/?route='+route+'&theme='+theme+(['account','application'].includes(route)?'&view=member':'');section.append(h,f);document.body.append(section);jobs.push(new Promise(resolve=>{f.onload=async()=>{await f.contentDocument.fonts.ready;await new Promise(r=>setTimeout(r,200));const root=f.contentDocument.getElementById('root'),clone=root.cloneNode(true);copyStyles(root,clone);const wrap=document.createElement('div');wrap.setAttribute('data-screen',route+'-'+theme);wrap.style.cssText='width:'+width+'px;background:'+f.contentDocument.defaultView.getComputedStyle(f.contentDocument.documentElement).getPropertyValue('--paper');wrap.append(clone);f.replaceWith(wrap);resolve();};}));}
+await Promise.all(jobs);await document.fonts.ready;document.title='READY / ВТОРХОД / '+width;
+if(location.hash.includes('figmacapture=')){const s=document.createElement('script');s.src='https://mcp.figma.com/mcp/html-to-design/capture.js';s.async=true;document.head.append(s)}
+</script></body></html>
+
