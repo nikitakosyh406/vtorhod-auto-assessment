@@ -3,6 +3,12 @@ import { Matrix4, Vector3 } from 'three';
 
 export const MODEL_URL = 'https://sketchfab.com/3d-models/bmw-m5-g90-2024-wwwvecarzcom-b2dd13e63c2649c3be90da30e6670a46';
 const MODEL_ID = 'b2dd13e63c2649c3be90da30e6670a46';
+// Sketchfab material channels use linear RGB. Paper/blueprint CSS colours are
+// intentionally kept out of the PBR paint: near-white values overexpose it.
+const MODEL_PALETTE = {
+  light: { body: [.12,.13,.14], glass: [.025,.035,.045], tyre: [.012,.014,.017], metal: [.27,.29,.31] },
+  dark: { body: [.17,.18,.19], glass: [.035,.045,.055], tyre: [.018,.021,.025], metal: [.31,.33,.35] },
+};
 let sdk;
 function loadViewer() {
   if (window.Sketchfab) return Promise.resolve(window.Sketchfab);
@@ -33,19 +39,21 @@ export function SketchfabCar({ visible, exploded, controls, onFallback }) {
       const api = viewer.current;
       if (!api) return;
       api.setBackground({ color: cssColor('--paper') });
+      const palette = MODEL_PALETTE[document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'];
       for (const original of originalMaterials) {
         const material = structuredClone(original);
         const name = (material.name || '').toLowerCase();
         const base = original.channels.AlbedoPBR?.color || original.channels.DiffuseColor?.color || [.6,.6,.6];
         const brightness = (base[0]+base[1]+base[2])/3;
-        const token = /glass|window|windscreen/.test(name)||original.channels.Opacity?.enable ? '--glass' : /tire|tyre|rubber|black/.test(name)||brightness<.07 ? '--wheel' : /chrome|wheel|rim|metal/.test(name)||original.channels.MetalnessPBR?.factor>.5 ? '--car-shade' : '--car-fill';
+        const colour = /glass|window|windscreen/.test(name)||original.channels.Opacity?.enable ? palette.glass : /tire|tyre|rubber|black/.test(name)||brightness<.07 ? palette.tyre : /chrome|wheel|rim|metal/.test(name)||original.channels.MetalnessPBR?.factor>.5 ? palette.metal : palette.body;
         for (const channelName of ['AlbedoPBR', 'DiffusePBR', 'DiffuseColor']) {
           const channel = material.channels[channelName];
-          if (channel) { delete channel.texture; channel.enable = true; channel.factor = 1; channel.color = cssColor(token); }
+          if (channel) { delete channel.texture; channel.enable = true; channel.factor = 1; channel.color = [...colour]; }
         }
         for (const channelName of ['MetalnessPBR', 'ClearCoat']) if (material.channels[channelName]) { delete material.channels[channelName].texture; material.channels[channelName].factor = 0; }
         for (const channelName of ['EmitColor','Matcap']) if (material.channels[channelName]) material.channels[channelName].enable = false;
-        if (material.channels.RoughnessPBR) { delete material.channels.RoughnessPBR.texture; material.channels.RoughnessPBR.factor = 0.8; }
+        if (material.channels.RoughnessPBR) { delete material.channels.RoughnessPBR.texture; material.channels.RoughnessPBR.factor = 0.85; }
+        if (material.channels.SpecularF0) material.channels.SpecularF0.factor = 0.25;
         api.setMaterial(material);
       }
     };
@@ -81,7 +89,8 @@ export function SketchfabCar({ visible, exploded, controls, onFallback }) {
             window.clearTimeout(timer);
             api.setShadingStyle('pbr', { type: 'lit' });
             api.setPostProcessing({ enable: false });
-            api.setEnvironment({ shadowEnabled: false, exposure: 0.6, lightIntensity: 0.5 });
+            api.setEnvironment({ shadowEnabled: false, exposure: 0.4, lightIntensity: 0.35 });
+            for (let light = 0; light < 3; light++) api.setLight(light, { enabled: false });
             api.getMaterialList((error, materials) => {
               if (disposed) return;
               if (!error) originalMaterials = materials;
